@@ -38,7 +38,7 @@ image-match-finder/
 
 1.  **Клонируйте репозиторий:**
     ```bash
-    git clone https://your-repository-url/image-match-finder.git
+    git clone https://github.com/DarAnod-B/Image-match-finder.git
     cd image-match-finder
     ```
 
