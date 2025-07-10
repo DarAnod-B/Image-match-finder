@@ -1,8 +1,10 @@
 import csv
 import io
+import os
 import logging
 from typing import List, Dict, Any, Iterator, Tuple, Optional
 from redis import Redis
+from settings import REDIS_TEMP_CSV_PATH
 
 class ImageLinkManager:
     """
@@ -41,12 +43,11 @@ class ImageLinkManager:
         logging.info(f"Попытка загрузить CSV данные из Redis для CHAT_ID: {chat_id}")
         try:
             csv_data = redis_client.get(f'{chat_id}:csv:raw')
-            output_path = redis_client.get(f"{chat_id}:OUTPUT_FILE_PATH")
 
             if not csv_data:
                 logging.error(f"В Redis не найдены CSV данные по ключу '{chat_id}:csv:raw'")
                 return None
-            if not output_path:
+            if not csv_data:
                 logging.error(f"В Redis не найден путь для сохранения по ключу '{chat_id}:OUTPUT_FILE_PATH'")
                 return None
 
@@ -67,7 +68,7 @@ class ImageLinkManager:
                 rows.append(parsed_row)
             
             logging.info(f"Успешно загружено и распарсено {len(rows)} строк из Redis.")
-            return cls(output_path, headers, rows, image_column_name, delimiter, image_delimiter)
+            return cls(REDIS_TEMP_CSV_PATH, headers, rows, image_column_name, delimiter, image_delimiter)
 
         except Exception as e:
             logging.error(f"Ошибка при загрузке или парсинге данных из Redis: {e}")
@@ -131,6 +132,10 @@ class ImageLinkManager:
         Это позволяет избежать повторного чтения файла для отправки в Redis.
         """
         try:
+            output_dir = os.path.dirname(self.output_path)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+                
             # Используем io.StringIO для эффективной сборки CSV в памяти
             string_buffer = io.StringIO()
             writer = csv.DictWriter(string_buffer, fieldnames=self.headers, delimiter=self.delimiter, lineterminator='\n')

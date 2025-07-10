@@ -1,17 +1,16 @@
 """
 Модуль для взаимодействия с Redis.
 
-Отвечает за:
-- Подключение к серверу Redis.
-- Получение CHAT_ID из переменных окружения.
-- Предоставление функций для извлечения данных для Group 1 (из CSV) и Group 2 (из списка).
+Реализован по "ленивому" принципу: подключение к серверу и проверка
+переменных окружения происходят только при первой необходимости, а не
+при импорте модуля. Это делает его безопасным для использования в
+любом режиме работы приложения.
 """
 import os
-import sys
 import redis
 import csv
 import io
-from typing import List
+from typing import List, Optional
 
 # Импортируем общие компоненты проекта
 from logger import logger
@@ -21,45 +20,63 @@ from settings import (
 )
 from core.utils import validate_image_file
 
-# --- ИНИЦИАЛИЗАЦИЯ И ПРОВЕРКА ЗАВИСИМОСТЕЙ ---
+# --- БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ ---
 
-try:
-    # CHAT_ID является обязательной зависимостью для этого модуля
-    CHAT_ID = os.environ['CHAT_ID']
-    logger.info("Модуль redis_handler использует CHAT_ID: %s", CHAT_ID)
-except KeyError:
-    logger.error("Критическая ошибка: переменная окружения CHAT_ID не установлена!")
-    sys.exit(1)
+# Просто читаем переменную. Будет None, если не установлена. Не вызывает ошибок.
+CHAT_ID: Optional[str] = os.getenv('CHAT_ID')
 
-# Определяем ключи для Redis на основе CHAT_ID
-_REDIS_CSV_KEY = f'{CHAT_ID}:csv:raw'
-_REDIS_GROUP2_KEY = f'{CHAT_ID}:group2_images'
+# Приватная переменная для хранения клиента. Будет создана лениво.
+_redis_client: Optional[redis.Redis] = None
 
-# --- ПОДКЛЮЧЕНИЕ К REDIS ---
 
-try:
-    # Создаем клиент Redis, который будет использоваться функциями этого модуля
-    _redis_client = redis.Redis(
-        host=REDIS_HOST,
-        port=REDIS_PORT,
-        db=REDIS_DB,
-        decode_responses=True  # Автоматически декодировать ответы из utf-8
-    )
-    # Проверяем соединение
-    _redis_client.ping()
-    logger.info("Успешное подключение к Redis по адресу %s:%d", REDIS_HOST, REDIS_PORT)
-except redis.exceptions.ConnectionError as e:
-    logger.error("Не удалось подключиться к Redis: %s", e)
-    sys.exit(1)
+def get_redis_client() -> Optional[redis.Redis]:
+    """
+    "Ленивый" и безопасный способ получить клиент Redis.
+    Подключается только при первом вызове. Возвращает None в случае ошибки.
+    """
+    global _redis_client
+
+    # Если клиент уже успешно создан, просто возвращаем его
+    if _redis_client:
+        return _redis_client
+
+    # Первый вызов: выполняем все проверки и подключение
+    if not CHAT_ID:
+        logger.error("Критическая ошибка: попытка использовать Redis, но CHAT_ID не установлен!")
+        return None
+
+    try:
+        client = redis.Redis(
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            db=REDIS_DB,
+            decode_responses=True  # Автоматически декодировать ответы из utf-8
+        )
+        # Проверяем соединение
+        client.ping()
+        logger.info("Успешное подключение к Redis по адресу %s:%d", REDIS_HOST, REDIS_PORT)
+        
+        # Сохраняем успешный клиент в глобальную переменную для последующих вызовов
+        _redis_client = client
+        return _redis_client
+
+    except redis.exceptions.ConnectionError as e:
+        logger.error("Не удалось подключиться к Redis: %s", e)
+        return None
 
 
 def get_group1_image_paths() -> List[str]:
     """
     Извлекает CSV из Redis, парсит его и возвращает список путей к изображениям для Group 1.
     """
+    client = get_redis_client()
+    if not client:
+        return [] # Не удалось получить клиент, возвращаем пустой список
+
+    _REDIS_CSV_KEY = f'{CHAT_ID}:csv:raw'
     logger.info("Получение CSV для Group 1 из Redis (ключ: '%s')", _REDIS_CSV_KEY)
 
-    csv_data = _redis_client.get(_REDIS_CSV_KEY)
+    csv_data = client.get(_REDIS_CSV_KEY)
     if not csv_data:
         logger.error("Данные CSV не найдены в Redis по ключу '%s'", _REDIS_CSV_KEY)
         return []
@@ -100,19 +117,15 @@ def get_group2_image_paths() -> List[str]:
     """
     Получает список путей к изображениям для Group 2 из списка Redis.
     """
+    client = get_redis_client()
+    if not client:
+        return []
+
+    _REDIS_GROUP2_KEY = f'{CHAT_ID}:group2_images'
     logger.info("Получение списка изображений для Group 2 из Redis (ключ: '%s')", _REDIS_GROUP2_KEY)
     
-    if not _redis_client.exists(_REDIS_GROUP2_KEY):
+    if not client.exists(_REDIS_GROUP2_KEY):
         logger.error("Ключ '%s' для Group 2 не найден в Redis.", _REDIS_GROUP2_KEY)
         return []
 
-    # lrange(key, 0, -1) получает все элементы списка
-    image_paths = _redis_client.lrange(_REDIS_GROUP2_KEY, 0, -1)
     
-    logger.info("Получено %d путей для Group 2 из Redis.", len(image_paths))
-
-    valid_paths = [path for path in image_paths if validate_image_file(path)]
-    if len(valid_paths) != len(image_paths):
-        logger.warning("Найдено %d валидных файлов изображений из %d.", len(valid_paths), len(image_paths))
-
-    return valid_paths

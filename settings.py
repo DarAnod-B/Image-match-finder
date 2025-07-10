@@ -4,7 +4,7 @@
 и геометрической верификации (RANSAC).
 """
 # --- ПУТИ К ДАННЫМ ---
-GROUP_1_DIR = r"C:\Programming\Work_project\realto_bot_project\Image_match_finder\test_images\Group1"
+GROUP_1_DIR = r"C:\Programming\Work_project\CIAN_general_parser\Project\images\watermark_test"
 
 # Путь к папке с базой изображений (например, чистые)
 GROUP_2_DIR = r"C:\Programming\Work_project\CIAN_general_parser\Project\images\save"
@@ -27,8 +27,17 @@ RANSAC_MIN_INLIERS = 15
 REDIS_HOST = "redis"
 REDIS_PORT = 6379
 REDIS_DB = 0
+REDIS_TEMP_CSV_PATH ="/app/temp.csv"
+
 
 # Параметры парсинга CSV из Redis
 CSV_IMAGE_COLUMN = "Ссылки на изображения"
 CSV_CELL_DELIMITER = "|"
 CSV_IMAGE_DELIMITER = ";"
+
+
+# --- ЛОГИКА ОБРАБОТКИ РЕЗУЛЬТАТОВ ---
+# Если True, изображения из Group 1, для которых не найден аналог,
+# будут добавлены в итоговый список.
+# Если False, такие изображения будут отброшены.
+KEEP_UNMATCHED_IMAGES = False 

@@ -1,9 +1,8 @@
-import os
+# Файл: main.py
 import sys
 import argparse
 
 from logger import logger
-from redis_utils import CHAT_ID
 from pipeline import run_pipeline
 
 if __name__ == "__main__":
@@ -12,28 +11,26 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter
     )
 
-    # Мы используем action='store_false', что означает:
-    # - Если флаг --local присутствует, destination ('use_redis') будет False.
-    # - Если флаг отсутствует, будет использовано значение по умолчанию (True).
+    # Флаг для включения локального режима. По умолчанию выключен (т.е. use_redis=True).
     parser.add_argument(
         '--local',
         action='store_false',
-        dest='use_redis',  # Сохраняем имя переменной как 'use_redis' для совместимости
-        help="Отключить использование Redis и работать с локальными директориями.\n"
-             "По умолчанию, скрипт использует Redis."
+        dest='use_redis',  # Результат сохранится в parsed_args.use_redis
+        help="Отключить использование Redis и работать с локальными директориями."
     )
-    # Явно устанавливаем, что по умолчанию use_redis должно быть True.
     parser.set_defaults(use_redis=True)
     
     parsed_args = parser.parse_args()
 
-    # Она будет срабатывать, когда use_redis = True (т.е. по умолчанию).
-    if parsed_args.use_redis and not CHAT_ID:
-        logger.error("Ошибка: для работы в режиме Redis необходимо установить переменную окружения CHAT_ID.")
-        sys.exit(1)
+    # Проверяем CHAT_ID только если мы действительно работаем в режиме Redis
+    if parsed_args.use_redis:
+        # Импортируем CHAT_ID здесь, локально, чтобы избежать ошибок при --local
+        from redis_handler import CHAT_ID
+        if not CHAT_ID:
+            logger.error("Ошибка: для работы в режиме Redis необходимо установить переменную окружения CHAT_ID.")
+            sys.exit(1)
     
-    # Запускаем основной конвейер обработки.
-    # Внутренние модули не меняются, так как они просто получают bool-значение.
+    # Запускаем основной конвейер обработки
     try:
         run_pipeline(parsed_args.use_redis)
     except Exception as e:
