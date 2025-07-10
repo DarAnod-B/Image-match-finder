@@ -1,0 +1,22 @@
+# Виртуальное окружение
+venv/
+.venv/
+
+# Кэш Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Временные папки и файлы
+_test_environment/
+temp/
+descriptors_cache.pkl
+*.log
+
+# Git
+.git/
+.gitignore
+
+# IDE / Редакторы
+.idea/
+.vscode/
