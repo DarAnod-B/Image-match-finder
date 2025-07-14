@@ -21,7 +21,7 @@ ORB_N_FEATURES = 2000
 # Минимальное количество "хороших" совпадений для рассмотрения кандидата
 MIN_CANDIDATE_MATCHES = 20
 # Минимальное количество геометрически согласованных точек (inliers)
-RANSAC_MIN_INLIERS = 15
+RANSAC_MIN_INLIERS = 100
 
 # --- НАСТРОЙКИ ДЛЯ РЕЖИМА REDIS ---
 REDIS_HOST = "redis"

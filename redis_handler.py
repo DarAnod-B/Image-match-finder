@@ -113,19 +113,25 @@ def get_group1_image_paths() -> List[str]:
     return valid_paths
 
 
-def get_group2_image_paths() -> List[str]:
+def get_group2_dir_paths() -> str|None:
     """
-    Получает список путей к изображениям для Group 2 из списка Redis.
+    Получает ПУТЬ к директории из Redis, а затем сканирует ее
+    с помощью общей функции `collect_from_dir`.
     """
     client = get_redis_client()
     if not client:
-        return []
+        return None
 
-    _REDIS_GROUP2_KEY = f'{CHAT_ID}:group2_images'
-    logger.info("Получение списка изображений для Group 2 из Redis (ключ: '%s')", _REDIS_GROUP2_KEY)
+    # Предполагаем, что в Redis по этому ключу лежит ОДИН путь к директории
+    _REDIS_GROUP2_KEY = f'{CHAT_ID}:GROUP2_DIR_IMAGES' 
+    logger.info("Получение пути к директории для Group 2 из Redis (ключ: '%s')", _REDIS_GROUP2_KEY)
     
-    if not client.exists(_REDIS_GROUP2_KEY):
-        logger.error("Ключ '%s' для Group 2 не найден в Redis.", _REDIS_GROUP2_KEY)
-        return []
+    directory_path = client.get(_REDIS_GROUP2_KEY)
 
+    if not directory_path:
+        logger.error("Путь к директории не найден в Redis по ключу '%s'", _REDIS_GROUP2_KEY)
+        return None
+
+    logger.info("Путь из Redis получен: '%s'. Запускаем сканирование...", directory_path)
     
+    return directory_path.strip() 

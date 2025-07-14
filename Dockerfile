@@ -10,7 +10,7 @@ RUN apt-get update && \
     apt-get install -y ttf-mscorefonts-installer && \
     rm -rf /var/lib/apt/lists/*
 
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 
 WORKDIR /app

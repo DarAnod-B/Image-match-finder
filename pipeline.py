@@ -19,7 +19,8 @@ from core.searcher import Searcher
 # Модули для работы с данными
 import data_loader
 from image_link_manager import ImageLinkManager
-# Импортируем "ленивый" getter и безопасную переменную CHAT_ID
+
+# Redis
 from redis_handler import get_redis_client, CHAT_ID
 
 def _build_descriptor_cache(use_redis_mode: bool) -> bool:
@@ -53,6 +54,7 @@ def _process_query_images(use_redis_mode: bool, keep_unmatched_images: bool) -> 
         return final_list
 
     group1_paths = data_loader.get_group1_image_paths(use_redis_mode)
+    logger.debug("G1 after loader  : %s", group1_paths)
 
     if not group1_paths:
         logger.warning("В источнике данных для Group 1 не найдено изображений.")
@@ -77,6 +79,7 @@ def _process_query_images(use_redis_mode: bool, keep_unmatched_images: bool) -> 
                 final_list.append(img1_path)
             else:
                 logger.info("Отбрасываем исходное изображение согласно настройкам (KEEP_UNMATCHED_IMAGES=False).")
+    logger.debug("G1 final_list    : %s", final_list)
 
     return final_list
 
