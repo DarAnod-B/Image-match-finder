@@ -1,4 +1,4 @@
-# config/settings.py
+    # config/settings.py
 """
 Конфигурация для поиска изображений на основе кэширования дескрипторов
 и геометрической верификации (RANSAC).
@@ -8,6 +8,8 @@ GROUP_1_DIR = r"C:\Programming\Work_project\CIAN_general_parser\Project\images\w
 
 # Путь к папке с базой изображений (например, чистые)
 GROUP_2_DIR = r"C:\Programming\Work_project\CIAN_general_parser\Project\images\save"
+
+OUTPUT_DIR = r"/app/data/presentation/replaced_images"
 
 # Теперь мы храним не индекс, а просто кэш дескрипторов
 DESCRIPTORS_CACHE_PATH = "descriptors_cache.pkl"

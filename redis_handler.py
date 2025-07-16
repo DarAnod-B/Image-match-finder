@@ -65,13 +65,14 @@ def get_redis_client() -> Optional[redis.Redis]:
         return None
 
 
-def get_group1_image_paths() -> List[str]:
+def get_group1_image_paths_with_indices() -> List[tuple[int, str]]:
     """
-    Извлекает CSV из Redis, парсит его и возвращает список путей к изображениям для Group 1.
+    Извлекает CSV из Redis, парсит его и возвращает список кортежей
+    (индекс, путь) для изображений Group 1, сохраняя их исходный порядок.
     """
     client = get_redis_client()
     if not client:
-        return [] # Не удалось получить клиент, возвращаем пустой список
+        return []  # Не удалось получить клиент, возвращаем пустой список
 
     _REDIS_CSV_KEY = f'{CHAT_ID}:csv:raw'
     logger.info("Получение CSV для Group 1 из Redis (ключ: '%s')", _REDIS_CSV_KEY)
@@ -81,7 +82,11 @@ def get_group1_image_paths() -> List[str]:
         logger.error("Данные CSV не найдены в Redis по ключу '%s'", _REDIS_CSV_KEY)
         return []
 
-    image_paths = []
+    # Этот список будет хранить кортежи (индекс, путь)
+    indexed_paths = []
+    # Используем счетчик для создания уникального последовательного индекса
+    current_index = 0
+    
     csv_file = io.StringIO(csv_data)
     reader = csv.reader(csv_file, delimiter=CSV_CELL_DELIMITER)
 
@@ -95,22 +100,29 @@ def get_group1_image_paths() -> List[str]:
 
         for row in reader:
             if len(row) > image_col_index and row[image_col_index]:
+                # Разделяем пути внутри одной ячейки
                 paths_in_cell = row[image_col_index].split(CSV_IMAGE_DELIMITER)
-                image_paths.extend([path.strip() for path in paths_in_cell if path.strip()])
                 
+                for path in paths_in_cell:
+                    clean_path = path.strip()
+                    # Проверяем, что путь не пустой и файл валидный
+                    if clean_path and validate_image_file(clean_path):
+                        # КЛЮЧЕВОЙ МОМЕНТ: добавляем кортеж с текущим индексом и путем
+                        indexed_paths.append((current_index, clean_path))
+                        # Увеличиваем индекс для следующего изображения
+                        current_index += 1
+                    elif clean_path:
+                        logger.warning("Пропущен невалидный путь к файлу: %s", clean_path)
+
     except StopIteration:
         logger.warning("CSV файл в Redis пуст (содержит только заголовки или ничего).")
     except Exception as e:
         logger.error("Ошибка при парсинге CSV из Redis: %s", e)
         return []
 
-    logger.info("Извлечено %d путей изображений из CSV для Group 1.", len(image_paths))
+    logger.info("Извлечено и проиндексировано %d валидных путей изображений из CSV для Group 1.", len(indexed_paths))
     
-    valid_paths = [path for path in image_paths if validate_image_file(path)]
-    if len(valid_paths) != len(image_paths):
-        logger.warning("Найдено %d валидных файлов изображений из %d.", len(valid_paths), len(image_paths))
-
-    return valid_paths
+    return indexed_paths
 
 
 def get_group2_dir_paths() -> str|None:
